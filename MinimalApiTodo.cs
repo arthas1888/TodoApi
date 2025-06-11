@@ -15,20 +15,20 @@ public static class MinimalApiTodo
     {
 
         app.MapGet("/todoitems", async (ApplicationDbContext db) =>
-            await db.Todos.ToListAsync());
+            await db.todos.ToListAsync());
 
         app.MapGet("/todoitems/complete", async (ApplicationDbContext db) =>
-            await db.Todos.Where(t => t.IsComplete).ToListAsync());
+            await db.todos.Where(t => t.IsComplete).ToListAsync());
 
         app.MapGet("/todoitems/{id}", async (int id, ApplicationDbContext db) =>
-            await db.Todos.FindAsync(id)
+            await db.todos.FindAsync(id)
                 is Todo todo
                     ? Results.Ok(todo)
                     : Results.NotFound());
 
         app.MapPost("/todoitems", async (Todo todo, ApplicationDbContext db) =>
         {
-            db.Todos.Add(todo);
+            db.todos.Add(todo);
             await db.SaveChangesAsync();
 
             return Results.Created($"/todoitems/{todo.Id}", todo);
@@ -36,7 +36,7 @@ public static class MinimalApiTodo
 
         app.MapPut("/todoitems/{id}", async (int id, Todo inputTodo, ApplicationDbContext db) =>
         {
-            var todo = await db.Todos.FindAsync(id);
+            var todo = await db.todos.FindAsync(id);
 
             if (todo is null) return Results.NotFound();
 
@@ -50,9 +50,9 @@ public static class MinimalApiTodo
 
         app.MapDelete("/todoitems/{id}", async (int id, ApplicationDbContext db) =>
         {
-            if (await db.Todos.FindAsync(id) is Todo todo)
+            if (await db.todos.FindAsync(id) is Todo todo)
             {
-                db.Todos.Remove(todo);
+                db.todos.Remove(todo);
                 await db.SaveChangesAsync();
                 return Results.NoContent();
             }

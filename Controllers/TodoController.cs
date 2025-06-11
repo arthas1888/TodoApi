@@ -26,21 +26,21 @@ public class TodoController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Todo>>> GetTodos()
     {
-        return await _dbContext.Todos.ToListAsync();
+        return await _dbContext.todos.ToListAsync();
     }
 
     // GET: api/Todo/complete
     [HttpGet("[action]")]
     public async Task<ActionResult<IEnumerable<Todo>>> Complete()
     {
-        return await _dbContext.Todos.Where(x => x.IsComplete).ToListAsync();
+        return await _dbContext.todos.Where(x => x.IsComplete).ToListAsync();
     }
 
     // GET: api/Todo/5
     [HttpGet("{id}")]
     public async Task<ActionResult<Todo>> GetTodo(long id)
     {
-        var todo = await _dbContext.Todos.FirstOrDefaultAsync(x => x.Id == id);
+        var todo = await _dbContext.todos.FirstOrDefaultAsync(x => x.Id == id);
 
         if (todo == null)
         {
@@ -54,7 +54,7 @@ public class TodoController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Todo>> PostTodo(Todo todo)
     {
-        _dbContext.Todos.Add(todo);
+        _dbContext.todos.Add(todo);
         await _dbContext.SaveChangesAsync(); // commit the changes to the database
         return CreatedAtAction("GetTodo", new { id = todo.Id }, todo);
     }
@@ -93,7 +93,7 @@ public class TodoController : ControllerBase
     [HttpPut("[action]/{id}")]
     public async Task<IActionResult> Update(long id, Todo todo)
     {
-        var entity = await _dbContext.Todos.FindAsync(id);
+        var entity = await _dbContext.todos.FindAsync(id);
         if (entity == null)
         {
             return NotFound();
@@ -109,13 +109,13 @@ public class TodoController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteTodo(long id)
     {
-        var todo = await _dbContext.Todos.FindAsync(id);
+        var todo = await _dbContext.todos.FindAsync(id);
         if (todo == null)
         {
             return NotFound();
         }
 
-        _dbContext.Todos.Remove(todo);
+        _dbContext.todos.Remove(todo);
         await _dbContext.SaveChangesAsync();
 
         return Ok();
@@ -123,7 +123,7 @@ public class TodoController : ControllerBase
 
     private bool TodoExists(long id)
     {
-        return _dbContext.Todos.Any(e => e.Id == id);
+        return _dbContext.todos.Any(e => e.Id == id);
     }
 }
 

@@ -5,8 +5,20 @@ using TodoApi.Models;
 using TodoApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+var env = builder.Environment;
 
-builder.Services.AddDbContext<ApplicationDbContext>(opt => opt.UseInMemoryDatabase("TodoList"));
+// builder.Services.AddDbContext<ApplicationDbContext>(opt => opt.UseInMemoryDatabase("TodoList"));
+builder.Services.AddDbContextPool<ApplicationDbContext>(opt =>
+{
+    opt
+        .UseNpgsql(builder.Configuration.GetConnectionString("DbContext"))
+        .UseSnakeCaseNamingConvention();
+    if (env.IsDevelopment())
+    {
+        opt.EnableSensitiveDataLogging();
+    }
+});
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApiDocument(config =>
 {
@@ -17,8 +29,15 @@ builder.Services.AddOpenApiDocument(config =>
 
 builder.Services.AddControllers();
 
-
+// Add services to the container.
+#region Services
+// Singleton -> un servicio que se crea una sola vez y se comparte en toda la aplicación.
+// Transient -> un servicio que se crea cada vez que se solicita.
+// Scoped -> un servicio que se crea una vez por solicitud HTTP.
+builder.Services.AddScoped<IGenericCrud<Category>, CategoryCrudService>();
+builder.Services.AddScoped<IGenericCrud<Product>, ProductCrudService>();
 builder.Services.AddSingleton<TodoService>();
+#endregion
 
 var app = builder.Build();
 app.MapControllers();
@@ -43,6 +62,3 @@ app.MapCustomApis();
 app.Run();
 
 
-// Singleton -> un servicio que se crea una sola vez y se comparte en toda la aplicación.
-// Transient -> un servicio que se crea cada vez que se solicita.
-// Scoped -> un servicio que se crea una vez por solicitud HTTP.
