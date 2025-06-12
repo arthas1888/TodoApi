@@ -27,6 +27,7 @@ builder.Services.AddOpenApiDocument(config =>
     config.Version = "v1";
 });
 
+builder.Services.AddAutoMapper(typeof(Program));
 builder.Services.AddControllers();
 
 // Add services to the container.
@@ -37,6 +38,7 @@ builder.Services.AddControllers();
 builder.Services.AddScoped<IGenericCrud<Category>, CategoryCrudService>();
 builder.Services.AddScoped<IGenericCrud<Product>, ProductCrudService>();
 builder.Services.AddSingleton<TodoService>();
+builder.Services.AddSingleton<PostgresService>();
 #endregion
 
 var app = builder.Build();

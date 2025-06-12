@@ -1,7 +1,10 @@
+using System.Collections;
+using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TodoApi.Data;
 using TodoApi.Models;
+using TodoApi.Models.Dto;
 using TodoApi.Services;
 
 namespace TodoApi.Controllers;
@@ -13,21 +16,33 @@ namespace TodoApi.Controllers;
 /// <param name="dbContext">The service context for managing Products.</param>
 [Route("api/[controller]")]
 [ApiController]
-public class ProductController(IGenericCrud<Product> service) : ControllerBase
+public class ProductController(IGenericCrud<Product> service, IMapper mapper) : ControllerBase
 {
     private readonly IGenericCrud<Product> _service = service;
+    private readonly IMapper _mapper = mapper;
 
     // GET: api/Product
     [HttpGet]
-    public async Task<IEnumerable<Product>> GetProducts() => await _service.GetAllAsync();
+    public async Task<IEnumerable> GetProducts() => (await _service.GetAllAsync()).Select(p => _mapper.Map<ProductDto>(p));
+
+    // GET: api/Product/Select
+    [HttpGet("[action]")]
+    public async Task<IActionResult> Select()
+        => Ok(await ((ProductCrudService)_service).SelectGetAllAsync());
+
+    // GET: api/Product/GetSql
+    [HttpGet("[action]")]
+    public async Task<IActionResult> GetSql()
+        => Content(await ((ProductCrudService)_service).GetSqlAllAsync(), "application/json");
 
     // GET: api/Product/5
     [HttpGet("{id}")]
-    public async Task<ActionResult<Product>> GetProduct(long id)
+    public async Task<ActionResult<ProductDto>> GetProduct(long id)
     {
         var entity = await _service.GetByIdAsync((int)id);
         if (entity == null) return NotFound(); // 404 Not Found
-        return entity; // 200 OK
+        return ProductDto.FromProduct(entity); // 200 OK
+        // return  _mapper.Map<ProductDto>(entity); // 200 OK
     }
 
     // POST: api/Product
