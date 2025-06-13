@@ -14,6 +14,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Category> category { get; set; } = null!;
     public DbSet<Blog> blog { get; set; } = null!;
     public DbSet<Post> post { get; set; } = null!;
+    public DbSet<User> users { get; set; } = null!;
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -27,7 +28,16 @@ public class ApplicationDbContext : DbContext
             .Entity<Category>()
             .Property(e => e.CreateDate)
             .HasDefaultValueSql("now()");
-            
+
+        modelBuilder
+            .Entity<User>()
+            .Property(e => e.CreateDate)
+            .HasDefaultValueSql("now()");
+
+        modelBuilder.Entity<User>()
+            .Property(p => p.FullName)
+            .HasComputedColumnSql(@"name || ' ' || coalesce(last_name, '')", stored: true);
+
         modelBuilder.ApplyConfiguration(new ProductConfiguration());
         modelBuilder.ApplyConfiguration(new PostConfiguration());
     }

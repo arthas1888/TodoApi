@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using TodoApi.Data;
@@ -11,9 +12,11 @@ using TodoApi.Data;
 namespace TodoApi.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250613201206_USerTable")]
+    partial class USerTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -201,10 +204,8 @@ namespace TodoApi.Migrations
                         .HasColumnName("id");
 
                     b.Property<DateTime?>("CreateDate")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("create_date")
-                        .HasDefaultValueSql("now()");
+                        .HasColumnName("create_date");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -213,11 +214,9 @@ namespace TodoApi.Migrations
                         .HasColumnName("email");
 
                     b.Property<string>("FullName")
-                        .ValueGeneratedOnAddOrUpdate()
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")
-                        .HasColumnName("full_name")
-                        .HasComputedColumnSql("name || ' ' || coalesce(last_name, '')", true);
+                        .HasColumnName("full_name");
 
                     b.Property<string>("LastName")
                         .HasMaxLength(100)

@@ -1,6 +1,10 @@
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using TodoApi;
 using TodoApi.Data;
+using TodoApi.Managers;
 using TodoApi.Models;
 using TodoApi.Services;
 
@@ -30,6 +34,10 @@ builder.Services.AddOpenApiDocument(config =>
 builder.Services.AddAutoMapper(typeof(Program));
 builder.Services.AddControllers();
 
+#region Managers
+builder.Services.AddScoped<LoginManager>();
+#endregion
+
 // Add services to the container.
 #region Services
 // Singleton -> un servicio que se crea una sola vez y se comparte en toda la aplicación.
@@ -39,6 +47,26 @@ builder.Services.AddScoped<IGenericCrud<Category>, CategoryCrudService>();
 builder.Services.AddScoped<IGenericCrud<Product>, ProductCrudService>();
 builder.Services.AddSingleton<TodoService>();
 builder.Services.AddSingleton<PostgresService>();
+builder.Services.AddScoped<Microsoft.AspNetCore.Identity.IPasswordHasher<User>, Microsoft.AspNetCore.Identity.PasswordHasher<User>>();
+#endregion
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(jwtOptions =>
+    {
+        // jwtOptions.Authority = "https://www.tiendana.com";
+        jwtOptions.Audience = builder.Configuration["Authentication:Jwt:Audience"]!;
+        jwtOptions.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Authentication:Jwt:SigningKey"]!)),
+            ValidIssuer = builder.Configuration["Authentication:Jwt:Issuer"]!,
+        };
+    });
+
+#region background Services
+// builder.Services.AddHostedService<DbFeed>();
 #endregion
 
 var app = builder.Build();

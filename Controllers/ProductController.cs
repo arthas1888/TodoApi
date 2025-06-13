@@ -1,5 +1,6 @@
 using System.Collections;
 using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TodoApi.Data;
@@ -14,6 +15,7 @@ namespace TodoApi.Controllers;
 /// This constructor takes a <see cref="ApplicationDbContext"/> context to manage Products.
 /// </summary>
 /// <param name="dbContext">The service context for managing Products.</param>
+[Authorize]
 [Route("api/[controller]")]
 [ApiController]
 public class ProductController(IGenericCrud<Product> service, IMapper mapper) : ControllerBase
@@ -23,7 +25,8 @@ public class ProductController(IGenericCrud<Product> service, IMapper mapper) : 
 
     // GET: api/Product
     [HttpGet]
-    public async Task<IEnumerable> GetProducts() => (await _service.GetAllAsync()).Select(p => _mapper.Map<ProductDto>(p));
+    public async Task<IEnumerable> GetProducts() => _mapper.Map<List<ProductDto>>(await _service.GetAllAsync()); // 200 OK
+        // return Ok(_mapper.Map<IEnumerable<ProductDto>>(await _service.GetAllAsync())); // 200 OK
 
     // GET: api/Product/Select
     [HttpGet("[action]")]
@@ -47,6 +50,7 @@ public class ProductController(IGenericCrud<Product> service, IMapper mapper) : 
 
     // POST: api/Product
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Product>> PostProduct(Product model)
     {
         var entity = await _service.CreateAsync(model);
