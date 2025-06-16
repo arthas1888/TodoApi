@@ -3,6 +3,7 @@ using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using OpenIddict.Validation.AspNetCore;
 using TodoApi.Data;
 using TodoApi.Models;
 using TodoApi.Models.Dto;
@@ -15,7 +16,8 @@ namespace TodoApi.Controllers;
 /// This constructor takes a <see cref="ApplicationDbContext"/> context to manage Products.
 /// </summary>
 /// <param name="dbContext">The service context for managing Products.</param>
-[Authorize]
+// [Authorize]
+[Authorize(AuthenticationSchemes = OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme)]
 [Route("api/[controller]")]
 [ApiController]
 public class ProductController(IGenericCrud<Product> service, IMapper mapper) : ControllerBase

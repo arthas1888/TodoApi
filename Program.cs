@@ -1,5 +1,7 @@
+using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using TodoApi;
@@ -21,6 +23,8 @@ builder.Services.AddDbContextPool<ApplicationDbContext>(opt =>
     {
         opt.EnableSensitiveDataLogging();
     }
+    // Register the entity sets needed by OpenIddict.
+    opt.UseOpenIddict();
 });
 
 builder.Services.AddEndpointsApiExplorer();
@@ -50,6 +54,13 @@ builder.Services.AddSingleton<PostgresService>();
 builder.Services.AddScoped<Microsoft.AspNetCore.Identity.IPasswordHasher<User>, Microsoft.AspNetCore.Identity.PasswordHasher<User>>();
 #endregion
 
+builder.Services.Configure<IdentityOptions>(options =>
+{
+    //     options.ClaimsIdentity.UserNameClaimType = Claims.Name;
+    //     options.ClaimsIdentity.UserIdClaimType = Claims.Subject;
+    options.ClaimsIdentity.RoleClaimType = ClaimTypes.Role;
+});
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(jwtOptions =>
     {
@@ -65,12 +76,71 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+#region openIddict
+
+builder.Services.AddOpenIddict()
+    // Register the OpenIddict core components.
+        .AddCore(options =>
+        {
+            // Configure OpenIddict to use the Entity Framework Core stores and models.
+            // Note: call ReplaceDefaultEntities() to replace the default OpenIddict entities.
+            options.UseEntityFrameworkCore()
+                    .UseDbContext<ApplicationDbContext>();
+                    
+
+        })
+
+        // Register the OpenIddict server components.
+        .AddServer(options =>
+        {
+            // Enable the token endpoint.
+            options.SetTokenEndpointUris("connect/token");
+
+            // Enable the client credentials flow.
+            options
+                // .AllowClientCredentialsFlow()
+                .AllowPasswordFlow()
+                .AllowRefreshTokenFlow();
+            
+            options.AcceptAnonymousClients();
+
+            // Register the signing and encryption credentials.
+            options.AddDevelopmentEncryptionCertificate()
+                    .AddDevelopmentSigningCertificate();
+                
+            options.DisableAccessTokenEncryption();
+
+            // Register the ASP.NET Core host and configure the ASP.NET Core-specific options.
+            options.UseAspNetCore()
+                    .EnableTokenEndpointPassthrough();
+            
+        })
+
+        // Register the OpenIddict validation components.
+        .AddValidation(options =>
+        {
+            // Import the configuration from the local OpenIddict server instance.
+            options.UseLocalServer();
+
+            // Register the ASP.NET Core host.
+            options.UseAspNetCore();
+        });
+
+#endregion
+
 #region background Services
 // builder.Services.AddHostedService<DbFeed>();
 #endregion
 
 var app = builder.Build();
 app.MapControllers();
+
+app.UseRouting();
+app.UseCors();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.UseOpenApi();
 app.UseSwaggerUi(config =>
 {

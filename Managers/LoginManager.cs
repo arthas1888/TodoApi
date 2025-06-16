@@ -17,7 +17,9 @@ public class LoginManager(ApplicationDbContext dbContext, ILogger<LoginManager> 
 
     public async Task<object?> ValidateUserAsync(LoginViewModel model)
     {
-        var user = await _dbContext.users.FirstOrDefaultAsync(u => u.Email == model.Email);
+        var user = await _dbContext.users
+            .Include(u => u.Role) // Include the Role navigation property if needed
+            .FirstOrDefaultAsync(u => u.Email == model.Email);
         if (user == null)
         {
             return null; // User not found
@@ -41,8 +43,13 @@ public class LoginManager(ApplicationDbContext dbContext, ILogger<LoginManager> 
         // Create a claims identity with the user's ID
         // claims son los atributos del usuario que se van a incluir en el token
         // en este caso el sub es el id del usuario, pero se pueden incluir otros atributos como email, roles, etc.
-        var subject = new ClaimsIdentity([new Claim("sub", user.Id.ToString()), new Claim(ClaimTypes.Email, user.Email.ToString()),
-            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()), new Claim(ClaimTypes.Name, user.FullName?.ToString()?? "")]);
+        var subject = new ClaimsIdentity([
+            new Claim("sub", user.Id.ToString()),
+            new Claim(ClaimTypes.Email, user.Email.ToString()),
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim(ClaimTypes.Name, user.FullName?.ToString()?? ""),
+            new Claim(ClaimTypes.Role, user.Role?.Name ?? "")
+        ]);
 
         // crea el token de acuerdo a los datos del usuario o claims
         var token = handler.CreateJwtSecurityToken(_configuration["Authentication:Jwt:Issuer"], _configuration["Authentication:Jwt:Audience"], subject,

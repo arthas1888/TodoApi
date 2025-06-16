@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using OpenIddict.Validation.AspNetCore;
 using TodoApi.Data;
 using TodoApi.Models;
 using TodoApi.Services;
@@ -13,6 +15,7 @@ namespace TodoApi.Controllers;
 /// <param name="dbContext">The service context for managing Categorys.</param>
 [Route("api/[controller]")]
 [ApiController]
+[Authorize(AuthenticationSchemes = OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme)]
 public class CategoryController(IGenericCrud<Category> service) : ControllerBase
 {
     private readonly IGenericCrud<Category> _service = service;

@@ -15,6 +15,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Blog> blog { get; set; } = null!;
     public DbSet<Post> post { get; set; } = null!;
     public DbSet<User> users { get; set; } = null!;
+    public DbSet<Role> role { get; set; } = null!;
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
