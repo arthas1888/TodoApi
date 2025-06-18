@@ -7,37 +7,30 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using OpenIddict.Abstractions;
 using OpenIddict.Server.AspNetCore;
 using TodoApi.Data;
-using TodoApi.Models;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace TodoApi.Controllers;
 
-public class AuthorizationController : Controller
+public class AuthorizationBackupController : Controller
 {
     private readonly IOpenIddictApplicationManager _applicationManager;
     private readonly IOpenIddictScopeManager _scopeManager;
     private readonly ApplicationDbContext _context;
-    private readonly SignInManager<ApplicationUser> _signInManager;
-    private readonly UserManager<ApplicationUser> _userManager;
 
-    public AuthorizationController(IOpenIddictApplicationManager applicationManager, IOpenIddictScopeManager scopeManager, ApplicationDbContext context,
-    SignInManager<ApplicationUser> signInManager, UserManager<ApplicationUser> userManager)
+    public AuthorizationBackupController(IOpenIddictApplicationManager applicationManager, IOpenIddictScopeManager scopeManager, ApplicationDbContext context)
     {
         _applicationManager = applicationManager;
         _scopeManager = scopeManager;
         _context = context;
-        _signInManager = signInManager;
-        _userManager = userManager;
     }
 
-    [HttpPost("~/connect/token"), IgnoreAntiforgeryToken, Produces("application/json")]
+    [HttpPost("~/connect/token/backup"), IgnoreAntiforgeryToken, Produces("application/json")]
     public async Task<IActionResult> Exchange()
     {
         var request = HttpContext.GetOpenIddictServerRequest() ??
@@ -45,10 +38,9 @@ public class AuthorizationController : Controller
 
         if (request.IsPasswordGrantType())
         {
-            // var user = _context.Users
-            //     .AsNoTracking()
-            //     .FirstOrDefault(u => u.UserName == request.Username || u.Email == request.Username);
-            var user = await _userManager.FindByNameAsync(request.Username!);
+            var user = await _context.users
+                .Include(u => u.Role) // Include the Role navigation property if needed
+                .FirstOrDefaultAsync(u => u.Email == request.Username!);
             if (user == null)
             {
                 var properties = new AuthenticationProperties(new Dictionary<string, string?>
@@ -62,8 +54,11 @@ public class AuthorizationController : Controller
             }
 
             // Validate the username/password parameters and ensure the account is not locked out.
-            var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password!, lockoutOnFailure: true);
-            if (!result.Succeeded)
+            var passwordHasher = new Microsoft.AspNetCore.Identity.PasswordHasher<Models.User>();
+            var verificationResult = passwordHasher.VerifyHashedPassword(user, user.Password, request.Password!);
+
+            var passwordSuccess = verificationResult == Microsoft.AspNetCore.Identity.PasswordVerificationResult.Success;
+            if (!passwordSuccess)
             {
                 var properties = new AuthenticationProperties(new Dictionary<string, string?>
                 {
@@ -82,11 +77,10 @@ public class AuthorizationController : Controller
                 roleType: Claims.Role);
 
             // Add the claims that will be persisted in the tokens.
-            identity.SetClaim(Claims.Subject, await _userManager.GetUserIdAsync(user))
-                    .SetClaim(Claims.Email, await _userManager.GetEmailAsync(user))
-                    .SetClaim(Claims.Name, await _userManager.GetUserNameAsync(user))
-                    .SetClaim(Claims.PreferredUsername, await _userManager.GetUserNameAsync(user))
-                    .SetClaims(Claims.Role, [.. (await _userManager.GetRolesAsync(user))]);
+            identity.SetClaim(Claims.Subject, user.Id.ToString())
+                    .SetClaim(Claims.Email, user.Email)
+                    .SetClaim(Claims.Name, user.FullName?.ToString() ?? "")
+                    .SetClaim(Claims.Role, user.Role?.Name ?? "");
 
             // Note: in this sample, the granted scopes match the requested scope
             // but you may want to allow the user to uncheck specific scopes.
@@ -103,7 +97,9 @@ public class AuthorizationController : Controller
             var result = await HttpContext.AuthenticateAsync(OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
 
             // Retrieve the user profile corresponding to the refresh token.
-            var user = await _userManager.FindByIdAsync(result.Principal!.GetClaim(Claims.Subject)!);
+            var user = await _context.users
+                .Include(u => u.Role) // Include the Role navigation property if needed
+                .FirstOrDefaultAsync(u => u.Id.ToString() == result.Principal!.GetClaim(Claims.Subject)!);
             if (user == null)
             {
                 var properties = new AuthenticationProperties(new Dictionary<string, string?>
@@ -114,30 +110,17 @@ public class AuthorizationController : Controller
 
                 return Forbid(properties, OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
             }
-
-            // Ensure the user is still allowed to sign in.
-            if (!await _signInManager.CanSignInAsync(user))
-            {
-                var properties = new AuthenticationProperties(new Dictionary<string, string?>
-                {
-                    [OpenIddictServerAspNetCoreConstants.Properties.Error] = Errors.InvalidGrant,
-                    [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] = "The user is no longer allowed to sign in."
-                });
-
-                return Forbid(properties, OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
-            }
-
+            
             var identity = new ClaimsIdentity(result.Principal!.Claims,
                 authenticationType: TokenValidationParameters.DefaultAuthenticationType,
                 nameType: Claims.Name,
                 roleType: Claims.Role);
 
-            // Override the user claims present in the principal in case they changed since the refresh token was issued.
-            identity.SetClaim(Claims.Subject, await _userManager.GetUserIdAsync(user))
-                    .SetClaim(Claims.Email, await _userManager.GetEmailAsync(user))
-                    .SetClaim(Claims.Name, await _userManager.GetUserNameAsync(user))
-                    .SetClaim(Claims.PreferredUsername, await _userManager.GetUserNameAsync(user))
-                    .SetClaims(Claims.Role, [.. (await _userManager.GetRolesAsync(user))]);
+             // Add the claims that will be persisted in the tokens.
+            identity.SetClaim(Claims.Subject, user.Id.ToString())
+                    .SetClaim(Claims.Email, user.Email)
+                    .SetClaim(Claims.Name, user.FullName?.ToString() ?? "")
+                    .SetClaim(Claims.Role, user.Role?.Name ?? "");
 
             identity.SetDestinations(GetDestinations);
 

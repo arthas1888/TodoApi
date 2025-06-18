@@ -1,6 +1,8 @@
 
+using Microsoft.AspNetCore.Identity;
 using OpenIddict.Abstractions;
 using TodoApi.Data;
+using TodoApi.Models;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace TodoApi.Services;
@@ -20,7 +22,9 @@ public class DbFeed(IServiceProvider services, ILogger<DbFeed> logger) : IHosted
         dbContext.Database.EnsureCreated();
         _logger.LogInformation("Database created or already exists.");
 
-        await SeedCredentials(dbContext);
+        // await SeedCredentials(dbContext);
+
+        await CreateUsers();
         return;
         var adminRole = dbContext.role.FirstOrDefault(r => r.Name == "Admin");
 
@@ -57,6 +61,28 @@ public class DbFeed(IServiceProvider services, ILogger<DbFeed> logger) : IHosted
         dbContext.users.Add(user);
         await dbContext.SaveChangesAsync();
 
+    }
+
+    private async Task CreateUsers()
+    {
+        using var serviceScope = _services.CreateScope();
+        var userManager = serviceScope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var roleManager = serviceScope.ServiceProvider.GetRequiredService<RoleManager<ApplicationRole>>();
+
+        var role = new ApplicationRole { Name = "Admin" };
+        var res = await roleManager.CreateAsync(role);
+
+        var user = new ApplicationUser { UserName = "admin4@mail.com", Email = "admin3@mail.com", LastName = "John", Address = "123 Main St" };
+        var result = await userManager.CreateAsync(user, "Abc123*");
+        if (result.Succeeded)
+        {
+            await userManager.AddToRoleAsync(user, role.Name);
+            _logger.LogInformation("User {Email} created successfully.", user.Email);
+        }
+        else
+        {
+            _logger.LogError("Failed to create user {Email}: {Errors}", user.Email, string.Join(", ", result.Errors.Select(e => e.Description)));
+        }
     }
 
 

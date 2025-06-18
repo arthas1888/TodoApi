@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Quartz;
 using TodoApi;
 using TodoApi.Data;
 using TodoApi.Managers;
@@ -42,6 +43,13 @@ builder.Services.AddControllers();
 builder.Services.AddScoped<LoginManager>();
 #endregion
 
+#region  identity
+// Register the Identity services.
+builder.Services.AddIdentity<ApplicationUser, ApplicationRole>()
+    .AddEntityFrameworkStores<ApplicationDbContext>()
+    .AddDefaultTokenProviders();
+#endregion
+
 // Add services to the container.
 #region Services
 // Singleton -> un servicio que se crea una sola vez y se comparte en toda la aplicación.
@@ -78,15 +86,27 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 #region openIddict
 
+// OpenIddict offers native integration with Quartz.NET to perform scheduled tasks
+// (like pruning orphaned authorizations/tokens from the database) at regular intervals.
+builder.Services.AddQuartz(options =>
+{
+    options.UseSimpleTypeLoader();
+    options.UseInMemoryStore();
+});
+
+// Register the Quartz.NET service and configure it to block shutdown until jobs are complete.
+builder.Services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
+
 builder.Services.AddOpenIddict()
-    // Register the OpenIddict core components.
+        // Register the OpenIddict core components.
         .AddCore(options =>
         {
             // Configure OpenIddict to use the Entity Framework Core stores and models.
             // Note: call ReplaceDefaultEntities() to replace the default OpenIddict entities.
             options.UseEntityFrameworkCore()
                     .UseDbContext<ApplicationDbContext>();
-                    
+            // Enable Quartz.NET integration.
+            options.UseQuartz();
 
         })
 
@@ -101,19 +121,19 @@ builder.Services.AddOpenIddict()
                 // .AllowClientCredentialsFlow()
                 .AllowPasswordFlow()
                 .AllowRefreshTokenFlow();
-            
+
             options.AcceptAnonymousClients();
 
             // Register the signing and encryption credentials.
             options.AddDevelopmentEncryptionCertificate()
                     .AddDevelopmentSigningCertificate();
-                
+
             options.DisableAccessTokenEncryption();
 
             // Register the ASP.NET Core host and configure the ASP.NET Core-specific options.
             options.UseAspNetCore()
                     .EnableTokenEndpointPassthrough();
-            
+
         })
 
         // Register the OpenIddict validation components.
