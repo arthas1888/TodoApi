@@ -7,14 +7,17 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using OpenIddict.Abstractions;
 using OpenIddict.Server.AspNetCore;
+using OpenIddict.Validation.AspNetCore;
 using TodoApi.Data;
 using TodoApi.Models;
+using TodoApi.Services;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace TodoApi.Controllers;
@@ -24,17 +27,34 @@ public class AuthorizationController : Controller
     private readonly IOpenIddictApplicationManager _applicationManager;
     private readonly IOpenIddictScopeManager _scopeManager;
     private readonly ApplicationDbContext _context;
+    private readonly TokenService _tokenService;
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly RoleManager<ApplicationRole> _roleManager;
 
     public AuthorizationController(IOpenIddictApplicationManager applicationManager, IOpenIddictScopeManager scopeManager, ApplicationDbContext context,
-    SignInManager<ApplicationUser> signInManager, UserManager<ApplicationUser> userManager)
+    SignInManager<ApplicationUser> signInManager, UserManager<ApplicationUser> userManager, RoleManager<ApplicationRole> roleManager, TokenService tokenService)
     {
         _applicationManager = applicationManager;
         _scopeManager = scopeManager;
         _context = context;
         _signInManager = signInManager;
         _userManager = userManager;
+        _roleManager = roleManager;
+        _tokenService = tokenService;
+    }
+
+    [Authorize(Roles = "SuperUser", AuthenticationSchemes = OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme)]
+    [HttpPost("~/revoke/token/{userId}"), IgnoreAntiforgeryToken, Produces("application/json")]
+    public async Task<IActionResult> RevokeToken(string userId)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null)
+        {
+            return NotFound(new { message = "User not found." });
+        }
+        await _tokenService.RevokeAllUserTokensAsync(userId);
+        return Ok(new { message = "Tokens revoked successfully." });
     }
 
     [HttpPost("~/connect/token"), IgnoreAntiforgeryToken, Produces("application/json")]
@@ -81,12 +101,25 @@ public class AuthorizationController : Controller
                 nameType: Claims.Name,
                 roleType: Claims.Role);
 
+            var userRole = _context.UserRoles
+                    .Include(x => x.Role).ThenInclude(r => r.RoleClaims)
+                    .AsNoTracking() // Use AsNoTracking to avoid tracking changes to the entities
+                    .FirstOrDefault(u => u.UserId == user.Id);
+
+            var role = userRole?.Role?.Name ?? "";
+            var claims = userRole?.Role?.RoleClaims?.ToList() ?? [];
+
             // Add the claims that will be persisted in the tokens.
             identity.SetClaim(Claims.Subject, await _userManager.GetUserIdAsync(user))
                     .SetClaim(Claims.Email, await _userManager.GetEmailAsync(user))
                     .SetClaim(Claims.Name, await _userManager.GetUserNameAsync(user))
                     .SetClaim(Claims.PreferredUsername, await _userManager.GetUserNameAsync(user))
-                    .SetClaims(Claims.Role, [.. (await _userManager.GetRolesAsync(user))]);
+                    .SetClaim(Claims.Role, role);
+
+            foreach (var claim in claims)
+            {
+                if (claim.ClaimType == "permission") identity.AddClaim(new Claim(claim.ClaimType, claim.ClaimValue ?? ""));
+            }
 
             // Note: in this sample, the granted scopes match the requested scope
             // but you may want to allow the user to uncheck specific scopes.

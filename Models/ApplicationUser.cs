@@ -19,5 +19,11 @@ public class ApplicationUser : IdentityUser
     [JsonIgnore]
     public virtual ICollection<IdentityUserToken<string>>? Tokens { get; set; } = [];
     [JsonIgnore]
-    public virtual ICollection<IdentityUserRole<string>>? UserRoles { get; set; } = [];
+    public virtual ICollection<ApplicationUserRole>? UserRoles { get; set; } = [];
+}
+
+public class ApplicationUserRole : IdentityUserRole<string>
+{
+    public virtual ApplicationUser? User { get; set; }
+    public virtual ApplicationRole? Role { get; set; }
 }

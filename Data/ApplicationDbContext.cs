@@ -1,10 +1,12 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using TodoApi.Models;
 
 namespace TodoApi.Data;
 
-public class ApplicationDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, string> // DbContext
+public class ApplicationDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, string,
+    IdentityUserClaim<string>, ApplicationUserRole, IdentityUserLogin<string>, IdentityRoleClaim<string>, IdentityUserToken<string>> // DbContext
 {
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
     {
@@ -27,11 +29,11 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
         modelBuilder.Entity<ApplicationUser>(b =>
         {
             b.ToTable("asp_net_users");
-            
+
             // Configure indexes with snake_case names
             b.HasIndex(u => u.NormalizedUserName).HasDatabaseName("user_name_index").IsUnique();
             b.HasIndex(u => u.NormalizedEmail).HasDatabaseName("email_index");
-            
+
             // Each User can have many UserClaims
             b.HasMany(e => e.Claims)
                 .WithOne()
@@ -52,7 +54,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
 
             // Each User can have many entries in the UserRole join table
             b.HasMany(e => e.UserRoles)
-                .WithOne()
+                .WithOne(e => e.User)
                 .HasForeignKey(ur => ur.UserId)
                 .IsRequired();
         });
@@ -61,6 +63,27 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
         {
             b.ToTable("asp_net_roles");
             b.HasIndex(u => u.NormalizedName).HasDatabaseName("normalized_name_index");
+
+            // Each Role can have many entries in the UserRole join table
+            b.HasMany(e => e.UserRoles)
+                .WithOne(e => e.Role)
+                .HasForeignKey(ur => ur.RoleId)
+                .IsRequired();
+
+            // Each Role can have many associated RoleClaims
+            b.HasMany(e => e.RoleClaims)
+                .WithOne()
+                .HasForeignKey(rc => rc.RoleId)
+                .IsRequired();
+        });
+
+        // Configure ApplicationUserRole with composite primary key
+        modelBuilder.Entity<ApplicationUserRole>(b =>
+        {
+            b.ToTable("asp_net_user_roles");
+            b.HasKey(ur => new { ur.UserId, ur.RoleId });
+            b.HasIndex(ur => ur.RoleId).HasDatabaseName("ix_application_user_roles_role_id");
+            b.HasIndex(ur => ur.UserId).HasDatabaseName("ix_application_user_roles_user_id");
         });
 
         // Configure Identity-related tables to use snake_case
@@ -79,12 +102,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
         modelBuilder.Entity<Microsoft.AspNetCore.Identity.IdentityUserToken<string>>(b =>
         {
             b.ToTable("asp_net_user_tokens");
-        });
-
-        modelBuilder.Entity<Microsoft.AspNetCore.Identity.IdentityUserRole<string>>(b =>
-        {
-            b.ToTable("asp_net_user_roles");
-            b.HasIndex(ur => ur.RoleId).HasDatabaseName("ix_application_user_roles_role_id");
         });
 
         modelBuilder.Entity<Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>>(b =>

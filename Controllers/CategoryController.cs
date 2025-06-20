@@ -35,6 +35,7 @@ public class CategoryController(IGenericCrud<Category> service) : ControllerBase
 
     // POST: api/Category
     [HttpPost]
+    [Authorize(Policy = "categoryAdd")] // Only Admin and Manager can create
     public async Task<ActionResult<Category>> PostCategory(Category model)
     {
         var entity = await _service.CreateAsync(model);

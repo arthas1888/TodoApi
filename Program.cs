@@ -57,6 +57,7 @@ builder.Services.AddIdentity<ApplicationUser, ApplicationRole>()
 // Scoped -> un servicio que se crea una vez por solicitud HTTP.
 builder.Services.AddScoped<IGenericCrud<Category>, CategoryCrudService>();
 builder.Services.AddScoped<IGenericCrud<Product>, ProductCrudService>();
+builder.Services.AddScoped<TokenService>();
 builder.Services.AddSingleton<TodoService>();
 builder.Services.AddSingleton<PostgresService>();
 builder.Services.AddScoped<Microsoft.AspNetCore.Identity.IPasswordHasher<User>, Microsoft.AspNetCore.Identity.PasswordHasher<User>>();
@@ -106,7 +107,7 @@ builder.Services.AddOpenIddict()
             options.UseEntityFrameworkCore()
                     .UseDbContext<ApplicationDbContext>();
             // Enable Quartz.NET integration.
-            options.UseQuartz();
+            options.UseQuartz();           
 
         })
 
@@ -115,6 +116,8 @@ builder.Services.AddOpenIddict()
         {
             // Enable the token endpoint.
             options.SetTokenEndpointUris("connect/token");
+
+            // options.UseReferenceAccessTokens();
 
             // Enable the client credentials flow.
             options
@@ -146,6 +149,21 @@ builder.Services.AddOpenIddict()
             options.UseAspNetCore();
         });
 
+#endregion
+
+#region Policies
+
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy("categoryAdd", policy =>
+        {
+            policy.RequireAuthenticatedUser();
+            policy.RequireClaim("permission", "category.add");
+        })
+    .AddPolicy("productAdd", policy =>
+        {
+            policy.RequireAuthenticatedUser();
+            policy.RequireClaim("permission", "product.add");
+        });
 #endregion
 
 #region background Services
