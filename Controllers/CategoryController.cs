@@ -22,6 +22,7 @@ public class CategoryController(IGenericCrud<Category> service) : ControllerBase
 
     // GET: api/Category
     [HttpGet]
+    [CustomAuthorize("category.view", Roles: "Admin")]
     public async Task<IEnumerable<Category>> GetCategories() => await _service.GetAllAsync();
 
     // GET: api/Category/5

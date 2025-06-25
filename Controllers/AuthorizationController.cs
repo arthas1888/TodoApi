@@ -45,6 +45,7 @@ public class AuthorizationController : Controller
     }
 
     [Authorize(Roles = "SuperUser", AuthenticationSchemes = OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme)]
+    // [AllowAnonymous]
     [HttpPost("~/revoke/token/{userId}"), IgnoreAntiforgeryToken, Produces("application/json")]
     public async Task<IActionResult> RevokeToken(string userId)
     {
@@ -116,10 +117,10 @@ public class AuthorizationController : Controller
                     .SetClaim(Claims.PreferredUsername, await _userManager.GetUserNameAsync(user))
                     .SetClaim(Claims.Role, role);
 
-            foreach (var claim in claims)
-            {
-                if (claim.ClaimType == "permission") identity.AddClaim(new Claim(claim.ClaimType, claim.ClaimValue ?? ""));
-            }
+            // foreach (var claim in claims)
+            // {
+            //     if (claim.ClaimType == "permission") identity.AddClaim(new Claim(claim.ClaimType, claim.ClaimValue ?? ""));
+            // }
 
             // Note: in this sample, the granted scopes match the requested scope
             // but you may want to allow the user to uncheck specific scopes.
@@ -225,6 +226,7 @@ public class AuthorizationController : Controller
 
         return claim.Type switch
         {
+            "permission" => [Destinations.AccessToken, Destinations.IdentityToken],
             Claims.Name or Claims.Subject => [Destinations.AccessToken, Destinations.IdentityToken],
 
             _ => [Destinations.AccessToken],

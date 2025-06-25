@@ -4,10 +4,12 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using OpenIddict.Validation.AspNetCore;
 using Quartz;
 using TodoApi;
 using TodoApi.Data;
 using TodoApi.Managers;
+using TodoApi.Midleware;
 using TodoApi.Models;
 using TodoApi.Services;
 
@@ -60,6 +62,7 @@ builder.Services.AddScoped<IGenericCrud<Product>, ProductCrudService>();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddSingleton<TodoService>();
 builder.Services.AddSingleton<PostgresService>();
+builder.Services.AddSingleton<RoleClaimService>();
 builder.Services.AddScoped<Microsoft.AspNetCore.Identity.IPasswordHasher<User>, Microsoft.AspNetCore.Identity.PasswordHasher<User>>();
 #endregion
 
@@ -70,7 +73,7 @@ builder.Services.Configure<IdentityOptions>(options =>
     options.ClaimsIdentity.RoleClaimType = ClaimTypes.Role;
 });
 
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+builder.Services.AddAuthentication(OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme)
     .AddJwtBearer(jwtOptions =>
     {
         // jwtOptions.Authority = "https://www.tiendana.com";
@@ -107,7 +110,7 @@ builder.Services.AddOpenIddict()
             options.UseEntityFrameworkCore()
                     .UseDbContext<ApplicationDbContext>();
             // Enable Quartz.NET integration.
-            options.UseQuartz();           
+            options.UseQuartz();
 
         })
 
@@ -137,6 +140,9 @@ builder.Services.AddOpenIddict()
             options.UseAspNetCore()
                     .EnableTokenEndpointPassthrough();
 
+            options.SetAccessTokenLifetime(TimeSpan.FromMinutes(5))
+                   .SetRefreshTokenLifetime(TimeSpan.FromDays(3));
+
         })
 
         // Register the OpenIddict validation components.
@@ -159,6 +165,11 @@ builder.Services.AddAuthorizationBuilder()
             policy.RequireAuthenticatedUser();
             policy.RequireClaim("permission", "category.add");
         })
+    .AddPolicy("categoryView", policy =>
+        {
+            policy.RequireAuthenticatedUser();
+            policy.RequireClaim("permission", "category.view");
+        })
     .AddPolicy("productAdd", policy =>
         {
             policy.RequireAuthenticatedUser();
@@ -176,8 +187,10 @@ app.MapControllers();
 app.UseRouting();
 app.UseCors();
 
+
 app.UseAuthentication();
 app.UseAuthorization();
+// app.UseMiddleware<UserTokenMiddleware>();
 
 app.UseOpenApi();
 app.UseSwaggerUi(config =>
