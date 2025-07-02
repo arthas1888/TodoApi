@@ -1,5 +1,6 @@
 
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using OpenIddict.Abstractions;
 using TodoApi.Data;
 using TodoApi.Models;
@@ -22,9 +23,12 @@ public class DbFeed(IServiceProvider services, ILogger<DbFeed> logger) : IHosted
         dbContext.Database.EnsureCreated();
         _logger.LogInformation("Database created or already exists.");
 
-        await SeedCredentials(dbContext);
+        // await SeedCredentials(dbContext);
 
-        await CreateUsers();
+        // await CreateUsers();
+        await SeedCategories(dbContext);
+        await SeedProducts(dbContext);
+        return;
         // return;
         var adminRole = dbContext.role.FirstOrDefault(r => r.Name == "Admin");
 
@@ -134,6 +138,44 @@ public class DbFeed(IServiceProvider services, ILogger<DbFeed> logger) : IHosted
                 }
             });
         }
+    }
+
+    public async Task SeedCategories(ApplicationDbContext dbContext)
+    {
+        dbContext.category.AddRange(
+            new Category { Name = "Beverages" },
+            new Category { Name = "Condiments" },
+            new Category { Name = "Confections" },
+            new Category { Name = "Dairy Products" },
+            new Category { Name = "Grains/Cereals" }
+        );
+        await dbContext.SaveChangesAsync();
+
+    }
+
+
+    public async Task SeedProducts(ApplicationDbContext dbContext)
+    {
+        var categories = await dbContext.category.ToListAsync();
+        var random = new Random();
+        var products = new List<Product>();
+        for (int i = 1; i <= 100; i++)
+        {
+            var category = categories[random.Next(categories.Count)];
+            products.Add(new Product
+            {
+                Name = $"Product {i}",
+                CategoryId = category.Id
+            });
+        }
+        dbContext.product.AddRange(products);
+        dbContext.product.AddRange(
+            new Product { Name = "Chai", CategoryId = categories.FirstOrDefault(c => c.Name == "Beverages")?.Id },
+            new Product { Name = "Chang", CategoryId = categories.FirstOrDefault(c => c.Name == "Beverages")?.Id },
+            new Product { Name = "Aniseed Syrup", CategoryId = categories.FirstOrDefault(c => c.Name == "Condiments")?.Id },
+            new Product { Name = "Chef Anton's Cajun Seasoning", CategoryId = categories.FirstOrDefault(c => c.Name == "Condiments")?.Id }
+        );
+        await dbContext.SaveChangesAsync();
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)

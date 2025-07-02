@@ -27,6 +27,7 @@ public class ProductController(IGenericCrud<Product> service, IMapper mapper) : 
 
     // GET: api/Product
     [HttpGet]
+    [AllowAnonymous]
     public async Task<IEnumerable> GetProducts() => _mapper.Map<List<ProductDto>>(await _service.GetAllAsync()); // 200 OK
         // return Ok(_mapper.Map<IEnumerable<ProductDto>>(await _service.GetAllAsync())); // 200 OK
 
@@ -52,7 +53,7 @@ public class ProductController(IGenericCrud<Product> service, IMapper mapper) : 
 
     // POST: api/Product
     [HttpPost]
-    [Authorize(Roles = "Admin")]
+    [Custom2Authorize(Roles = "Admin")]
     public async Task<ActionResult<Product>> PostProduct(Product model)
     {
         var entity = await _service.CreateAsync(model);

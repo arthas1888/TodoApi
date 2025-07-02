@@ -103,7 +103,8 @@ public class AuthorizationController : Controller
                 roleType: Claims.Role);
 
             var userRole = _context.UserRoles
-                    .Include(x => x.Role).ThenInclude(r => r.RoleClaims)
+                    .Include(x => x.Role)
+                        .ThenInclude(r => r.RoleClaims)
                     .AsNoTracking() // Use AsNoTracking to avoid tracking changes to the entities
                     .FirstOrDefault(u => u.UserId == user.Id);
 
